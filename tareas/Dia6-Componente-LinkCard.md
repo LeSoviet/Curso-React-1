@@ -1,95 +1,124 @@
-# Día 6: Creando el Componente `LinkCard`
+# Día 6: Mejorando el Componente `LinkCard`
 
-## Objetivo del Día
+## Objetivos del Día
 
-Mejorar la modularidad de nuestro código creando un componente específico para mostrar cada enlace individual. Esto hará nuestro código más limpio, reutilizable y fácil de mantener.
+-   Añadir un botón de "Eliminar" a cada `LinkCard`.
+-   Entender por qué la lógica de eliminación no puede vivir (todavía) dentro de `LinkCard`.
+-   Pasar funciones como `props` de un componente padre a un hijo.
 
-## Concepto Teórico
+## Tareas
 
-A medida que una aplicación crece, es una buena práctica dividir la UI en componentes más pequeños y especializados. En lugar de tener toda la lógica de renderizado de un enlace dentro de `LinkList`, podemos encapsularla en su propio componente, por ejemplo, `LinkCard`.
+### 1. Añadir un botón de Eliminar a `LinkCard.jsx`
 
-`LinkList` se encargará de la *lista*, y `LinkCard` se encargará de *un solo item* de esa lista. Esto se llama **Composición de Componentes**.
+Nuestro objetivo es poder eliminar enlaces individualmente. El primer paso es añadir un botón para esta acción en cada tarjeta de enlace.
 
-## Dibujo Conceptual
+**Paso a paso:**
 
-Estamos anidando componentes. `App` contiene a `LinkList`, y `LinkList` contendrá múltiples `LinkCard`.
+1.  Abre el archivo del componente `src/components/LinkCard.jsx`.
+2.  Dentro del `div` principal, al lado de la etiqueta `<a>`, añade una etiqueta `<button>`.
 
+**Código a modificar en `LinkCard.jsx`:**
+
+```jsx
+import React from 'react';
+
+function LinkCard(props) {
+  return (
+    <div className="link-card">
+      <a href={props.url} target="_blank" rel="noopener noreferrer">
+        {props.title}
+      </a>
+      {/* Añadir este botón */}
+      <button>Eliminar</button>
+    </div>
+  );
+}
+
+export default LinkCard;
 ```
-      +-----------------------------------+
-      |                App                |
-      |  +-----------------------------+  |
-      |  |          LinkList           |  |
-      |  |                             |  |
-      |  |  +-----------------------+  |  |
-      |  |  |  LinkCard (link 1)    |  |  |
-      |  |  +-----------------------+  |  |
-      |  |  +-----------------------+  |  |
-      |  |  |  LinkCard (link 2)    |  |  |
-      |  |  +-----------------------+  |  |
-      |  |  +-----------------------+  |  |
-      |  |  |  LinkCard (link 3)    |  |  |
-      |  |  +-----------------------+  |  |
-      |  |                             |  |
-      |  +-----------------------------+  |
-      +-----------------------------------+
+
+**¿Por qué y qué hace?**
+
+*   **`<button>Eliminar</button>`**: Simplemente estamos añadiendo un botón visible a cada una de nuestras tarjetas de enlace. Por ahora, este botón no hace nada, pero es el elemento de la interfaz de usuario con el que el usuario interactuará para eliminar un enlace.
+
+### 2. El problema: ¿Dónde vive el estado?
+
+Ahora, ¿cómo hacemos que ese botón funcione? Nuestra primera inclinación podría ser añadir una función `handleDelete` dentro de `LinkCard.jsx`.
+
+**Pero aquí hay un problema fundamental:**
+
+-   El componente `LinkCard` **no conoce la lista completa de enlaces**. Solo recibe `title` y `url` para un único enlace a través de `props`.
+-   La lista completa de enlaces (el array `links`) vive en el **estado del componente padre, `App.jsx`**.
+-   Para eliminar un enlace, necesitamos modificar ese array. Por lo tanto, la lógica de eliminación **debe** estar en el componente que es dueño del estado, es decir, en `App.jsx`.
+
+Esto nos lleva a un patrón increíblemente común e importante en React: **"Lifting State Up"** (Levantar el Estado), que veremos en detalle en la siguiente tarea. Por ahora, lo que necesitamos es una forma de que el `LinkCard` (el hijo) le diga a `App.jsx` (el padre): "¡Oye, quiero que me elimines!".
+
+### 3. Crear la función de eliminación en `App.jsx`
+
+Vamos a crear la función que realmente hace el trabajo de eliminar en el componente que tiene el poder para hacerlo: `App.jsx`.
+
+**Paso a paso:**
+
+1.  Abre `src/App.jsx`.
+2.  Dentro de la función `App`, crea una nueva función llamada `handleDeleteLink` que acepte un `id` como argumento.
+
+**Código a añadir en `App.jsx`:**
+
+```jsx
+function App() {
+  const [links, setLinks] = useState([/*...*/]);
+  // ... otros estados y funciones ...
+
+  // Nueva función para eliminar un enlace
+  const handleDeleteLink = (idToDelete) => {
+    // Filtramos el array, creando uno nuevo que excluye el enlace con el id a eliminar
+    const updatedLinks = links.filter(link => link.id !== idToDelete);
+    // Actualizamos el estado con el nuevo array
+    setLinks(updatedLinks);
+  };
+
+  // ... return ...
+}
 ```
 
-## Tarea
+**¿Por qué y qué hace?**
 
-1.  Crear un nuevo componente `LinkCard.jsx`.
-2.  Usar `LinkCard` dentro de `LinkList.jsx` para renderizar cada enlace.
+*   **`handleDeleteLink = (idToDelete) => { ... }`**: Definimos una función que toma un argumento, `idToDelete`, que será el `id` del enlace que queremos eliminar.
+*   **`links.filter(link => link.id !== idToDelete)`**: Este es el corazón de la lógica de eliminación inmutable.
+    *   El método `.filter()` de los arrays crea un **nuevo array** con todos los elementos que pasan una prueba (es decir, para los que la función devuelve `true`).
+    *   `link => link.id !== idToDelete`: Por cada `link` en el array `links`, comprobamos si su `id` es **diferente** al `idToDelete`.
+    *   Si el `id` es diferente, la condición es `true` y el `link` se incluye en el nuevo array `updatedLinks`.
+    *   Si el `id` es igual, la condición es `false` y el `link` se omite (se filtra).
+*   **`setLinks(updatedLinks)`**: Actualizamos el estado con el nuevo array que ya no contiene el enlace eliminado. React se encargará de volver a renderizar la lista.
 
-### Paso a Paso
+### 4. Pasar la función de eliminación como `prop`
 
-1.  **Crear `LinkCard.jsx`:**
-    *   En la carpeta `src/components`, crea un nuevo archivo: `LinkCard.jsx`.
-    *   Este componente recibirá un solo `link` como prop.
-    *   Su `return` será la estructura JSX de un enlace individual (el `<li>` y el `<a>`).
+Ahora que la función existe en `App.jsx`, necesitamos dársela al componente `LinkCard` para que pueda usarla.
 
-    ```jsx
-    // src/components/LinkCard.jsx
+**Paso a paso:**
 
-    // Recibimos el objeto 'link' completo como prop
-    function LinkCard({ link }) {
-      return (
-        <li>
-          <a href={link.url} target="_blank" rel="noopener noreferrer">
-            {link.title}
-          </a>
-        </li>
-      );
-    }
+1.  En `App.jsx`, busca donde renderizas la lista de `LinkCard` con `.map()`.
+2.  Añade una nueva `prop` al componente `<LinkCard>`, por ejemplo `onDelete`, y pásale la función `handleDeleteLink`.
 
-    export default LinkCard;
-    ```
+**Código a modificar en `App.jsx`:**
 
-2.  **Refactorizar `LinkList.jsx`:**
-    *   Importa tu nuevo componente: `import LinkCard from './LinkCard';`.
-    *   Dentro del `.map()`, en lugar de devolver un `<li>`, devuelve un componente `<LinkCard />`.
-    *   Pásale el `link` individual y la `key` al componente `LinkCard`.
+```jsx
+<section className="links-container">
+  {links.map(link => (
+    <LinkCard
+      key={link.id}
+      title={link.title}
+      url={link.url}
+      // ¡Pasando la función como prop!
+      onDelete={handleDeleteLink}
+    />
+  ))}
+</section>
+```
 
-    ```jsx
-    // src/components/LinkList.jsx
-    import LinkCard from './LinkCard'; // <-- Importar
+**¿Por qué y qué hace?**
 
-    function LinkList({ links }) {
-      return (
-        <section>
-          <ul>
-            {links.map(link => (
-              // Ahora usamos el componente LinkCard
-              <LinkCard key={link.id} link={link} />
-            ))}
-          </ul>
-        </section>
-      );
-    }
+*   **`onDelete={handleDeleteLink}`**: ¡Puedes pasar funciones como `props`! Esto es extremadamente poderoso. Le estamos dando al componente hijo `LinkCard` una "herramienta" (la función `handleDeleteLink`) que fue creada en el padre.
+*   La convención es nombrar las `props` que son funciones de eventos con `on[Evento]`, como `onDelete`, `onClick`, `onUpdate`, etc.
 
-    export default LinkList;
-    ```
-
-3.  **Verifica el Resultado:**
-    *   Visualmente, ¡nada debería haber cambiado!
-    *   Pero internamente, tu código ahora es mucho más profesional. Has separado las responsabilidades. Si mañana necesitas cambiar cómo se ve un enlace (añadir un icono, por ejemplo), solo tienes que modificar `LinkCard.jsx`, sin tocar `LinkList.jsx`.
-
-Este es el corazón de la filosofía de React: construir UIs complejas a partir de piezas pequeñas y reutilizables.
+En la siguiente tarea, veremos cómo el `LinkCard` recibe y utiliza esta `prop` para finalmente conectar el botón de "Eliminar".

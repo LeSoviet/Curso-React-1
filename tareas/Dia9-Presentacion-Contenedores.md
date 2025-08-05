@@ -1,71 +1,132 @@
-# Día 9: Componentes de Presentación vs. Contenedores
+# Día 9: Refactorizando con Componentes de Presentación
 
-## Objetivo del Día
+## Objetivos del Día
 
-Hoy aprenderás sobre un patrón de diseño común en React: separar los componentes en dos categorías: **Componentes Contenedores** (que se ocupan de *cómo funcionan las cosas*) y **Componentes de Presentación** (que se ocupan de *cómo se ven las cosas*).
+-   Continuar aplicando el patrón Contenedor/Presentación.
+-   Crear un componente de presentación para el encabezado del perfil (`ProfileHeader`).
+-   Hacer que `App.jsx` sea aún más limpio y declarativo.
 
-Esto mejora la reutilización y la claridad del código. Un componente de presentación no tiene estado propio y recibe todos sus datos y funciones a través de props, haciéndolo muy predecible y fácil de probar.
+## Tareas
 
-## Tarea
+### 1. Revisando `App.jsx`
 
-Refactorizarás `LinkList.jsx`. Crearás un nuevo componente puramente de presentación llamado `LinkItem.jsx` que se encargará de renderizar una sola fila de enlace. `LinkList` se convertirá en un "contenedor" para los `LinkItem`.
+Nuestro `App.jsx` ha mejorado mucho. Ahora actúa como un contenedor que maneja el estado y la lógica. Sin embargo, todavía tiene algo de JSX de presentación directamente en su `return`:
 
-### Paso a Paso
+```jsx
+// En App.jsx
+return (
+  <div className="container mt-5">
+    {/* Esto es JSX de presentación */}
+    <section className="profile-header text-center mb-4">
+      <img 
+        src="https://via.placeholder.com/150"
+        alt="Profile"
+        className="rounded-circle mb-3"
+      />
+      <h1>John Doe</h1>
+      <p className="text-muted">Software Developer | React Enthusiast</p>
+    </section>
 
-1.  **Crear el Componente de Presentación `LinkItem.jsx`:**
-    *   En `src/components`, crea un nuevo archivo `LinkItem.jsx`.
-    *   Este componente recibirá como props toda la información que necesita para un solo enlace: `title`, `url`, y el `id` del enlace. También recibirá la función `onDelete`.
-    *   Copia el JSX de un solo `<li>` desde el `.map()` de `LinkList.jsx` a este nuevo componente.
+    <AddLinkForm onAddLink={handleAddLink} />
+    <LinkList links={links} onDelete={handleDeleteLink} />
+  </div>
+);
+```
 
-    ```jsx
-    // src/components/LinkItem.jsx
+El objetivo de un componente contenedor puro es delegar todo el renderizado a los componentes de presentación. Vamos a extraer esa sección del perfil a su propio componente.
 
-    function LinkItem({ id, title, url, onDelete }) { // Usamos desestructuración en las props
-      return (
-        <li className="d-flex justify-content-between align-items-center bg-light p-3 rounded">
-          <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-outline-dark flex-grow-1 text-start">
-            {title}
-          </a>
-          <button onClick={() => onDelete(id)} className="btn btn-danger btn-sm ms-3">Eliminar</button>
-        </li>
-      );
-    }
+### 2. Crear el componente `ProfileHeader.jsx`
 
-    export default LinkItem;
-    ```
-    *   Fíjate que usamos la desestructuración de props `({ id, title, ... })` para hacer el código más limpio.
+Este será un componente de presentación muy simple. Su única responsabilidad será mostrar la información del perfil que reciba por `props`.
 
-2.  **Refactorizar el Componente Contenedor `LinkList.jsx`:**
-    *   Ahora, `LinkList.jsx` se simplifica. Su única responsabilidad es iterar sobre la lista de enlaces y renderizar un componente `LinkItem` por cada uno, pasándole las props necesarias.
-    *   Importa `LinkItem` en `LinkList.jsx`.
+**Paso a paso:**
 
-    ```jsx
-    // src/components/LinkList.jsx
-    import LinkItem from './LinkItem';
+1.  En la carpeta `src/components`, crea un nuevo archivo llamado `ProfileHeader.jsx`.
+2.  Define el componente para que acepte `props` como `imageUrl`, `name`, y `bio`.
+3.  Copia el JSX de la sección del perfil desde `App.jsx` y pégalo en el `return` de `ProfileHeader.jsx`, reemplazando el contenido estático con las `props`.
 
-    function LinkList({ links, onDeleteLink }) { // Desestructuramos las props aquí también
-      return (
-        <section>
-          <ul className="list-unstyled d-grid gap-3">
-            {links.map(link => (
-              <LinkItem 
-                key={link.id}
-                id={link.id} // Pasamos el id para la key y para la función de borrado
-                title={link.title}
-                url={link.url}
-                onDelete={onDeleteLink} // Pasamos la función de borrado
-              />
-            ))}
-          </ul>
-        </section>
-      );
-    }
+**Código para `ProfileHeader.jsx`:**
 
-    export default LinkList;
-    ```
+```jsx
+import React from 'react';
 
-3.  **Verificar que Todo Sigue Funcionando:**
-    *   Abre la aplicación en el navegador. Visualmente, nada debería haber cambiado. La funcionalidad de añadir y eliminar enlaces debe seguir intacta.
-    *   Sin embargo, tu base de código ahora es más limpia, organizada y reutilizable. El componente `LinkItem` podría ser usado en cualquier otra parte de la aplicación que necesite mostrar un enlace de esta manera, sin estar atado a la lógica de la lista completa.
+// Recibe los datos del perfil a través de props
+function ProfileHeader({ imageUrl, name, bio }) {
+  return (
+    <section className="profile-header text-center mb-4">
+      <img 
+        src={imageUrl} // Usa la prop imageUrl
+        alt={`Perfil de ${name}`} // Usa la prop name para un alt text dinámico
+        className="img-fluid rounded-circle mb-3" // img-fluid hace la imagen responsiva
+        style={{ width: '150px', height: '150px' }} // Estilo en línea para tamaño fijo
+      />
+      <h1>{name}</h1> {/* Usa la prop name */}
+      <p className="text-muted">{bio}</p> {/* Usa la prop bio */}
+    </section>
+  );
+}
 
-Este patrón te ayuda a pensar más claramente sobre las responsabilidades de tus componentes. Los componentes de presentación son fáciles de desarrollar y probar de forma aislada, mientras que los contenedores gestionan la lógica y el estado, conectando tu UI a los datos de la aplicación.
+export default ProfileHeader;
+```
+
+**¿Por qué y qué hace?**
+
+*   Hemos creado un componente completamente reutilizable. Ahora podríamos tener diferentes perfiles en nuestra aplicación simplemente pasándole diferentes `props` a `ProfileHeader`.
+*   **`alt={\`Perfil de ${name}\`}`**: Estamos usando una plantilla de string de JavaScript para crear un texto `alt` más descriptivo, lo cual es excelente para la accesibilidad.
+*   **`className="img-fluid ..."`**: `img-fluid` es una clase de Bootstrap que asegura que la imagen nunca sea más ancha que su contenedor, haciéndola responsiva.
+*   **`style={{...}}`**: Además de `className`, puedes pasar estilos directamente a un elemento con el atributo `style`. Espera un objeto de JavaScript donde las propiedades de CSS se escriben en `camelCase` (ej: `backgroundColor` en lugar de `background-color`). Lo usamos aquí para asegurar que la imagen de perfil mantenga una forma cuadrada.
+
+### 3. Usar `ProfileHeader` en `App.jsx`
+
+Ahora, vamos a limpiar `App.jsx` reemplazando el bloque de JSX que cortamos con nuestro nuevo componente.
+
+**Paso a paso:**
+
+1.  Abre `src/App.jsx`.
+2.  Importa el nuevo componente `ProfileHeader`.
+3.  En el `return`, elimina la sección del perfil y en su lugar, renderiza el componente `<ProfileHeader />`, pasándole las `props` necesarias.
+
+**Código a modificar en `App.jsx`:**
+
+```jsx
+// ... otras importaciones
+import AddLinkForm from './components/AddLinkForm';
+import LinkList from './components/LinkList';
+import ProfileHeader from './components/ProfileHeader'; // 1. Importar
+
+function App() {
+  const [links, setLinks] = useState([/*...*/]);
+  // ... lógica y useEffect ...
+
+  // Datos del perfil (podrían venir del estado o de una API en el futuro)
+  const userProfile = {
+    name: 'John Doe',
+    bio: 'Software Developer | React Enthusiast',
+    imageUrl: 'https://via.placeholder.com/150'
+  };
+
+  return (
+    <div className="container mt-5">
+      {/* 2. Usar el nuevo componente */}
+      <ProfileHeader 
+        name={userProfile.name}
+        bio={userProfile.bio}
+        imageUrl={userProfile.imageUrl}
+      />
+
+      <AddLinkForm onAddLink={handleAddLink} />
+      <LinkList links={links} onDelete={handleDeleteLink} />
+    </div>
+  );
+}
+
+export default App;
+```
+
+**¿Por qué y qué hace?**
+
+*   Hemos creado un objeto `userProfile` para mantener los datos del perfil organizados. En una aplicación real, este objeto probablemente vendría del estado, que a su vez se llenaría con datos de una API.
+*   El `return` de `App.jsx` es ahora extremadamente declarativo y fácil de leer. Describe la estructura de la página (`ProfileHeader`, `AddLinkForm`, `LinkList`) sin preocuparse por los detalles de implementación de cada sección.
+*   Hemos reforzado la separación de responsabilidades. `App.jsx` se encarga de la **orquestación** (qué componentes mostrar y qué datos y funciones pasarles), mientras que los componentes en la carpeta `components` se encargan de la **presentación** (cómo se ven esos datos).
+
+Este proceso de refactorización es un ciclo continuo en el desarrollo con React. A medida que los componentes crecen, busca oportunidades para extraer JSX en componentes de presentación más pequeños y especializados. Esto mantendrá tu base de código saludable y fácil de manejar a largo plazo.

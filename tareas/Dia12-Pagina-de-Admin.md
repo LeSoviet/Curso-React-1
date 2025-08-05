@@ -1,117 +1,156 @@
-# Día 12: Construyendo la Página de Admin
+# Día 12: Creando la Página de Administración y Layouts de Ruta
 
-## Objetivo del Día
+## Objetivos del Día
 
-Darle cuerpo a nuestra nueva página de administración. Además de añadir enlaces, implementaremos la funcionalidad para **eliminar** un enlace existente.
+-   Crear un nuevo componente de página: `AdminPage.jsx`.
+-   Reestructurar las rutas para que `App.jsx` actúe como un "layout" o "shell" para otras páginas.
+-   Usar el componente `<Outlet>` de React Router para renderizar rutas anidadas.
 
-## Concepto Teórico
+## Tareas
 
-Para eliminar un item de una lista en el estado, necesitamos saber su `id`. Crearemos una función `deleteLink(id)` en `App.jsx`. Esta función usará el método `.filter()` de los arrays para crear una *nueva* lista que contenga todos los enlaces *excepto* el que tiene el `id` que queremos eliminar.
+### 1. El Problema: Repetición de UI
 
-Recordemos la **inmutabilidad**: nunca modificamos el estado directamente. `filter` es perfecto porque devuelve un nuevo array, que es lo que le pasamos a nuestra función `setLinks`.
+Actualmente, `App.jsx` contiene toda nuestra UI principal. Si creamos una `AdminPage` separada, ¿cómo compartimos elementos comunes como la barra de navegación, el encabezado o el pie de página entre `App.jsx` (nuestra página de perfil) y `AdminPage.jsx`? No queremos copiar y pegar estos elementos en cada nueva página que creemos.
 
-```javascript
-const numeros = [1, 2, 3, 4];
-const sinElTres = numeros.filter(numero => numero !== 3);
-// sinElTres ahora es [1, 2, 4]
+La solución es usar **rutas anidadas**. La idea es tener un componente de "layout" principal que defina la estructura común (como la navegación) y luego renderice los componentes de página específicos (perfil, admin, etc.) dentro de él.
+
+Nuestro `App.jsx` es el candidato perfecto para convertirse en este componente de layout.
+
+### 2. Crear el Componente `AdminPage.jsx`
+
+Primero, vamos a crear el componente para nuestra nueva página.
+
+**Paso a paso:**
+
+1.  Crea una nueva carpeta `src/pages` para organizar nuestros componentes de página, para no mezclarlos con los componentes reutilizables.
+2.  Mueve `App.jsx` a `src/pages` y renómbralo a `ProfilePage.jsx`. **(¡Importante! Tendrás que actualizar las rutas de importación en otros archivos después de esto)**.
+3.  Dentro de `src/pages`, crea un nuevo archivo llamado `AdminPage.jsx`.
+
+**Código para `AdminPage.jsx`:**
+
+```jsx
+import React from 'react';
+
+function AdminPage() {
+  return (
+    <div>
+      <h1 className="mb-4">Panel de Administración</h1>
+      <p>
+        Aquí es donde podrías gestionar tus enlaces, ver estadísticas o configurar tu perfil.
+      </p>
+      {/* En el futuro, aquí podrías tener tablas, formularios, etc. */}
+    </div>
+  );
+}
+
+export default AdminPage;
 ```
 
-## Dibujo Conceptual
+**¿Por qué y qué hace?**
 
-El flujo para eliminar es similar al de añadir: una función se pasa como prop desde el padre (`App`) al hijo que la necesita (`AdminPage`).
+*   **`src/pages`**: Creamos esta carpeta para diferenciar claramente entre componentes reutilizables (`src/components`) y componentes que representan una página o vista completa.
+*   **`AdminPage.jsx`**: Por ahora, es un componente simple que solo muestra un título y un texto. En el futuro, podría contener su propia lógica y estado para gestionar los datos de la aplicación.
 
+### 3. Crear el Componente de Layout (`App.jsx`)
+
+Ahora, vamos a crear un nuevo `App.jsx` que servirá como el layout principal.
+
+**Paso a paso:**
+
+1.  Crea un nuevo archivo `src/App.jsx` (o renombra el antiguo si no lo has movido).
+2.  Importa el componente `<Outlet>` y `<Link>` de `react-router-dom`.
+3.  Define la estructura común de la UI (navegación, contenedor principal) y usa `<Outlet />` como marcador de posición para donde se renderizarán las páginas anidadas.
+
+**Código para el nuevo `src/App.jsx` (Layout):**
+
+```jsx
+import React from 'react';
+import { Outlet, Link } from 'react-router-dom';
+
+function App() {
+  return (
+    <div className="container mt-5">
+      <header className="d-flex justify-content-between align-items-center mb-4">
+        <h1 className="h3">LinkHub</h1>
+        <nav>
+          <Link to="/" className="btn btn-outline-primary me-2">Mi Perfil</Link>
+          <Link to="/admin" className="btn btn-outline-secondary">Admin</Link>
+        </nav>
+      </header>
+
+      <main>
+        {/* Las rutas anidadas se renderizarán aquí */}
+        <Outlet />
+      </main>
+
+      <footer className="text-center text-muted mt-5">
+        <p>&copy; 2025 LinkHub</p>
+      </footer>
+    </div>
+  );
+}
+
+export default App;
 ```
-      +-------------------------------------------------+
-      |                      App.jsx                    |
-      |                                                 |
-      |   Estado: `links`                               |
-      |   Función: `deleteLink(id)` (filtra `links`)    |
-      |                                                 |
-      |       +-------------------------------------+   |
-      |       |             AdminPage               |   |
-      |       | props: `links`, `onDelete={deleteLink}` | --+
-      |       +-------------------------------------+   | |
-      +-------------------------------------------------+ |
-                                                        |
-      Dentro de AdminPage, cada enlace tendrá un botón "Eliminar".
-      -> onClick={() => props.onDelete(link.id)}
-      -> Llama a `deleteLink(link.id)` en App.jsx
-      -> Actualiza el estado `links`.
+
+**¿Por qué y qué hace?**
+
+*   **`<Outlet />`**: Este es el componente clave de React Router para layouts. Actúa como un **marcador de posición**. React Router mirará la URL actual y renderizará el componente de la ruta hija que coincida en el lugar donde se encuentra el `<Outlet />`.
+*   Hemos movido la navegación a este layout principal. Ahora estará visible en todas las páginas que anidemos dentro de él.
+
+### 4. Reconfigurar las Rutas en `main.jsx`
+
+Finalmente, ajustamos nuestra configuración de rutas para reflejar esta nueva estructura anidada.
+
+**Paso a paso:**
+
+1.  Abre `src/main.jsx`.
+2.  Importa los nuevos componentes de página (`ProfilePage` y `AdminPage`).
+3.  Modifica la estructura del enrutador para que `App` sea la ruta padre y las páginas sean sus `children`.
+
+**Código a modificar en `src/main.jsx`:**
+
+```jsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.jsx'; // Este es nuestro nuevo Layout
+import ProfilePage from './pages/ProfilePage.jsx'; // La antigua App.jsx
+import AdminPage from './pages/AdminPage.jsx';
+import './index.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
+
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+
+const router = createBrowserRouter([
+  {
+    path: '/', // La ruta padre
+    element: <App />, // Renderiza siempre el Layout
+    // errorElement: <ErrorPage />,
+    children: [ // Rutas anidadas que se renderizarán en el Outlet
+      {
+        index: true, // Esta es la ruta por defecto para '/'
+        element: <ProfilePage />,
+      },
+      {
+        path: 'admin', // Se renderiza en '/admin'
+        element: <AdminPage />,
+      },
+    ],
+  },
+]);
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <RouterProvider router={router} />
+  </React.StrictMode>,
+);
 ```
 
-## Tarea
+**¿Por qué y qué hace?**
 
-1.  Crear la función `deleteLink` en `App.jsx`.
-2.  Construir la UI de `AdminPage.jsx` para mostrar la lista de enlaces con un botón de eliminar para cada uno.
-3.  Pasar la función `deleteLink` a `AdminPage`.
+*   **`element: <App />`**: La ruta padre (`/`) ahora renderiza nuestro componente `App` (el layout).
+*   **`children: [...]`**: Esta propiedad contiene un array de rutas anidadas.
+*   **`index: true`**: La ruta con `index: true` es la que se renderiza en el `<Outlet>` cuando la URL coincide exactamente con la del padre (`/`). Por lo tanto, al ir a la raíz de nuestro sitio, veremos el `ProfilePage`.
+*   **`path: 'admin'`**: Esta ruta no tiene un `/` al principio. Es una ruta **relativa** a su padre. React Router la combinará para formar la URL completa `/admin`. Cuando naveguemos a `/admin`, el `AdminPage` se renderizará en el `<Outlet>`.
 
-### Paso a Paso
-
-1.  **Añadir `deleteLink` en `App.jsx`:**
-    *   Define la función que recibe un `id` y actualiza el estado.
-    *   Pásala como prop a `AdminPage`.
-
-    ```jsx
-    // src/App.jsx
-    // ...
-
-    function App() {
-      // ... estados y addLink ...
-
-      const deleteLink = (idToDelete) => {
-        const updatedLinks = links.filter(link => link.id !== idToDelete);
-        setLinks(updatedLinks);
-        console.log(`Enlace con id ${idToDelete} eliminado.`);
-      };
-
-      return (
-        <div className="App">
-          {/* ... nav y Routes ... */}
-          <Route path="/admin" element={
-            <AdminPage
-              links={links}
-              onNewLink={addLink}
-              onDeleteLink={deleteLink} // <-- Pasar la nueva función
-            />
-          } />
-          {/* ... */}
-        </div>
-      );
-    }
-    ```
-
-2.  **Construir `AdminPage.jsx`:**
-    *   Esta página recibirá la lista de `links`, la función para añadir y la función para borrar.
-    *   Mostrará el formulario y, debajo, la lista de enlaces actuales.
-    *   Cada enlace en la lista tendrá un botón "Eliminar".
-
-    ```jsx
-    // src/pages/AdminPage.jsx
-    import { AddLinkForm } from '../components';
-
-    export function AdminPage({ links, onNewLink, onDeleteLink }) {
-      return (
-        <div>
-          <h2>Administrar Enlaces</h2>
-          <AddLinkForm onNewLink={onNewLink} />
-          <hr />
-          <h3>Mis Enlaces Actuales:</h3>
-          <ul>
-            {links.map(link => (
-              <li key={link.id}>
-                {link.title} ({link.url})
-                <button onClick={() => onDeleteLink(link.id)} style={{ marginLeft: '10px' }}>
-                  Eliminar
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
-    }
-    ```
-    *   **Importante:** Nota el `onClick={() => onDeleteLink(link.id)}`. Usamos una función de flecha para poder pasar el `id` del enlace específico a la función `onDeleteLink` cuando se hace clic. Si solo pusiéramos `onClick={onDeleteLink(link.id)}`, la función se ejecutaría en cada renderizado, ¡borrando todo!
-
-### Verifica el Resultado
-
-Ve a la página `/admin`. Deberías ver tu formulario y la lista de enlaces. Prueba a eliminar uno. Debería desaparecer de la lista. Si vuelves a la página de inicio, el enlace eliminado tampoco estará allí. ¡Ahora tienes un CRUD casi completo (Create, Read, Delete)!
+Ahora tienes una estructura de enrutamiento mucho más potente y escalable. Puedes seguir añadiendo nuevas páginas como `children` del layout principal, y todas compartirán la misma navegación y estructura sin duplicar código.

@@ -1,122 +1,112 @@
-# Día 8: Levantando el Estado (Lifting State Up)
+# Día 8: Centralizando el Estado y la Lógica
 
-## Objetivo del Día
+## Objetivos del Día
 
-Conectar nuestro `AddLinkForm` con la lista de enlaces en `App.jsx`. Para ello, aprenderás uno de los patrones más importantes de React: "levantar el estado".
+-   Refactorizar `App.jsx` para que actúe como un "componente contenedor".
+-   Crear un nuevo componente de "presentación" para la lista de enlaces.
+-   Entender la diferencia entre componentes contenedores y de presentación.
 
-## Concepto Teórico
+## Tareas
 
-Tenemos un problema:
--   El estado con la lista de enlaces (`links`) vive en `App.jsx`.
--   El formulario que crea un nuevo enlace (`AddLinkForm`) necesita *modificar* esa lista.
+### 1. Contenedores vs. Componentes de Presentación
 
-Un componente hijo no puede pasar datos directamente a un padre. La solución es que el componente padre (`App`) le pase una *función* al hijo (`AddLinkForm`) a través de las props. El hijo podrá llamar a esa función cuando lo necesite, y esa función, que fue definida en el padre, sí podrá modificar el estado del padre.
+A medida que tu aplicación crece, es una buena práctica separar las preocupaciones. Un patrón común en React es dividir los componentes en dos categorías:
 
-Este patrón se llama **levantar el estado** porque el estado que maneja la lógica (la lista de enlaces) se mantiene en el ancestro común más cercano (`App.jsx`).
+1.  **Componentes Contenedores (o Inteligentes):**
+    *   **¿Qué hacen?** Se preocupan por **cómo funcionan las cosas**.
+    *   **Responsabilidades:** Manejan el estado, realizan llamadas a APIs, contienen la lógica de negocio (como `handleAddLink` o `handleDeleteLink`).
+    *   **Ejemplo:** Nuestro `App.jsx` se está convirtiendo en un componente contenedor. Sabe de dónde vienen los datos de los enlaces y cómo modificarlos.
 
-## Dibujo Conceptual
+2.  **Componentes de Presentación (o Tontos):**
+    *   **¿Qué hacen?** Se preocupan por **cómo se ven las cosas**.
+    *   **Responsabilidades:** Reciben datos y funciones a través de `props` y los renderizan. No tienen su propio estado complejo (quizás algo de estado de UI, como si un menú está abierto o no).
+    *   **Ejemplo:** `LinkCard.jsx` y `AddLinkForm.jsx` son componentes de presentación. No saben de dónde vienen los datos o qué sucede cuando se hace clic en un botón; simplemente reciben `props` y las usan.
 
-El padre pasa una "palanca de control" (una función) al hijo.
+Vamos a aplicar este patrón creando un componente de presentación para nuestra lista de enlaces.
 
+### 2. Crear el componente `LinkList.jsx`
+
+Este componente se encargará únicamente de mostrar la lista de `LinkCard`.
+
+**Paso a paso:**
+
+1.  En la carpeta `src/components`, crea un nuevo archivo llamado `LinkList.jsx`.
+2.  Este componente recibirá la lista de `links` y la función `onDelete` como `props` y se encargará de hacer el `.map()`.
+
+**Código para `LinkList.jsx`:**
+
+```jsx
+import React from 'react';
+import LinkCard from './LinkCard';
+
+// Recibe la lista de enlaces y la función de eliminación como props
+function LinkList({ links, onDelete }) {
+  return (
+    <section className="links-container">
+      {links.map(link => (
+        <LinkCard
+          key={link.id}
+          id={link.id}
+          title={link.title}
+          url={link.url}
+          onDelete={onDelete} // Pasa la función onDelete a cada LinkCard
+        />
+      ))}
+    </section>
+  );
+}
+
+export default LinkList;
 ```
-      +---------------------------------------------+
-      |                  App.jsx                    |
-      |                                             |
-      |   Estado: `links`                           |
-      |   Función: `addLink(newLink)` (modifica `links`) |
-      |                                             |
-      |       +---------------------------------+   |
-      |       |         LinkList                |   |
-      |       |   props: `links`                |   |
-      |       +---------------------------------+   |
-      |                                             |
-      |       +---------------------------------+   |
-      |       |         AddLinkForm             |   |
-      |       |   props: `onLinkAdd={addLink}`  | --+-- Pasa la función como prop
-      |       +---------------------------------+   |   |
-      +---------------------------------------------+   |
-                                                        |
-      Dentro de AddLinkForm, cuando el usuario envía el form:
-      -> llama a `props.onLinkAdd(nuevoEnlace)`
-      -> lo que en realidad ejecuta `addLink(nuevoEnlace)` en App.jsx
-      -> y actualiza el estado `links`.
+
+**¿Por qué y qué hace?**
+
+*   Hemos movido la lógica de renderizado de la lista (`.map()`) fuera de `App.jsx` y la hemos encapsulado en su propio componente.
+*   `LinkList` es un componente de presentación puro. No sabe cómo se obtienen o eliminan los enlaces; su única responsabilidad es mostrarlos. Recibe la lista `links` y la función `onDelete` y las pasa hacia abajo a los `LinkCard`.
+
+### 3. Refactorizar `App.jsx` para usar `LinkList`
+
+Ahora que tenemos nuestro nuevo componente, podemos simplificar `App.jsx`, haciendo que su rol como "contenedor" sea aún más claro.
+
+**Paso a paso:**
+
+1.  Abre `src/App.jsx`.
+2.  Importa el nuevo componente `LinkList`.
+3.  Reemplaza la sección `<section className="links-container">` y el `.map()` con el uso de tu nuevo componente.
+
+**Código a modificar en `App.jsx`:**
+
+```jsx
+// ... otras importaciones
+import AddLinkForm from './components/AddLinkForm';
+import LinkList from './components/LinkList'; // 1. Importar LinkList
+
+function App() {
+  const [links, setLinks] = useState([/*...*/]);
+
+  const handleAddLink = (title, url) => { /*...*/ };
+  const handleDeleteLink = (id) => { /*...*/ };
+
+  return (
+    <div className="App">
+      <section className="profile-header">{/*...*/}</section>
+
+      <AddLinkForm onAddLink={handleAddLink} />
+
+      {/* 2. Usar el nuevo componente LinkList */}
+      <LinkList links={links} onDelete={handleDeleteLink} />
+
+    </div>
+  );
+}
+
+export default App;
 ```
 
-## Tarea
+**¿Por qué y qué hace?**
 
-Modificar `App.jsx` y `AddLinkForm.jsx` para que el formulario realmente añada enlaces a la lista.
+*   ¡Mira qué limpio ha quedado el `return` de `App.jsx`! Ahora es muy fácil de leer y entender la estructura de alto nivel de nuestra aplicación.
+*   `App.jsx` ahora se enfoca en sus responsabilidades de **contenedor**: manejar el estado `links` y definir las funciones `handleAddLink` y `handleDeleteLink`.
+*   Luego, pasa los datos y las funciones necesarias a los componentes de **presentación** (`AddLinkForm` y `LinkList`), que se encargan del resto.
 
-### Paso a Paso
-
-1.  **Modificar `App.jsx`:**
-    *   Crea la función `addLink` que recibe un nuevo enlace y actualiza el estado `links`.
-    *   Pasa esta función como una prop (por ejemplo, `onNewLink`) a `AddLinkForm`.
-
-    ```jsx
-    // src/App.jsx
-    // ...
-
-    function App() {
-      const [links, setLinks] = useState([ ... ]);
-      // ...
-
-      // 1. La función que modifica el estado padre
-      const addLink = (newLinkData) => {
-        const newLink = {
-          id: Date.now(), // ID único
-          ...newLinkData
-        };
-        setLinks([...links, newLink]);
-      };
-
-      return (
-        <div className="App">
-          {/* ... */}
-          <LinkList links={links} />
-          <hr />
-          {/* 2. Pasa la función como prop */}
-          <AddLinkForm onNewLink={addLink} />
-        </div>
-      );
-    }
-    ```
-
-2.  **Modificar `AddLinkForm.jsx`:**
-    *   El componente ahora recibe la prop `onNewLink`.
-    *   En `handleSubmit`, en lugar de hacer `console.log`, llama a `onNewLink` con los datos del formulario.
-
-    ```jsx
-    // src/components/AddLinkForm.jsx
-    import { useState } from 'react';
-
-    // 1. Recibe la función en las props
-    function AddLinkForm({ onNewLink }) {
-      const [title, setTitle] = useState('');
-      const [url, setUrl] = useState('');
-
-      const handleSubmit = (event) => {
-        event.preventDefault();
-        if (!title || !url) return; // Validación simple
-
-        // 2. Llama a la función del padre con los datos
-        onNewLink({ title, url });
-
-        setTitle('');
-        setUrl('');
-      };
-
-      return (
-        <form onSubmit={handleSubmit}>
-          {/* ... inputs ... */}
-        </form>
-      );
-    }
-
-    export default AddLinkForm;
-    ```
-
-3.  **Verifica el Resultado:**
-    *   Usa el formulario para añadir un nuevo enlace.
-    *   ¡Debería aparecer instantáneamente en tu lista!
-
-Has implementado uno de los patrones más cruciales de React. Entender esto te abre las puertas a crear aplicaciones complejas y bien estructuradas.
+Este patrón de **Contenedor/Presentación** es una de las claves para escribir aplicaciones React mantenibles y escalables. Te permite separar la lógica de la vista, lo que hace que ambos sean más fáciles de entender, probar y modificar de forma independiente.

@@ -1,91 +1,119 @@
 # Día 9: Efectos Secundarios con `useEffect`
 
-## Objetivo del Día
+## Objetivos del Día
 
-Aprender a ejecutar "efectos secundarios" en tus componentes. Un efecto secundario es cualquier código que interactúa con algo fuera de React, como cargar datos, suscripciones, o manipular el DOM directamente. Usaremos `useEffect` para cambiar el título de la página del navegador.
+-   Entender qué es un "efecto secundario" en el contexto de React.
+-   Aprender a usar el Hook `useEffect` para ejecutar código en respuesta a cambios en el ciclo de vida del componente.
+-   Mostrar un mensaje en la consola cada vez que la lista de enlaces cambie.
 
-## Concepto Teórico
+## Tareas
 
-El hook `useEffect` nos permite ejecutar una función después de que el componente se haya renderizado.
+### 1. ¿Qué es un Efecto Secundario?
 
-`useEffect(funcionDeEfecto, [dependencias]);`
+En React, el trabajo principal de un componente es calcular y devolver JSX para renderizar la UI. Todo lo demás se considera un **efecto secundario**. 
 
--   **`funcionDeEfecto`**: El código que quieres ejecutar.
--   **`[dependencias]`**: Un array opcional de variables. El efecto se volverá a ejecutar *solo si* alguna de estas variables ha cambiado desde el último renderizado.
-    -   Si omites el array (`useEffect(fn)`): El efecto se ejecuta en **cada** renderizado. (¡Cuidado con los bucles infinitos!)
-    -   Si pasas un array vacío (`useEffect(fn, [])`): El efecto se ejecuta **solo una vez**, después del primer renderizado. Ideal para buscar datos iniciales.
-    -   Si pasas variables (`useEffect(fn, [a, b])`): El efecto se ejecuta la primera vez, y luego cada vez que `a` o `b` cambien.
+Un efecto secundario es cualquier operación que interactúa con el "mundo exterior" fuera del flujo normal de renderizado de React. Algunos ejemplos comunes son:
 
-## Dibujo Conceptual
+-   Hacer una petición a una API para obtener datos.
+-   Configurar una suscripción a un evento (como `window.addEventListener`).
+-   Manipular el DOM directamente (aunque esto se hace raramente en React).
+-   **Guardar datos en `localStorage` o `sessionStorage`.**
+-   **Actualizar el título del documento (`document.title`).**
+-   Registrar mensajes en la consola.
 
-`useEffect` es como darle a tu componente instrucciones sobre qué hacer *después* de que ha aparecido en la pantalla.
+El problema es: ¿**cuándo** ejecutamos este código? No podemos ponerlo directamente en el cuerpo del componente, porque se ejecutaría en cada renderizado, lo cual puede ser ineficiente o incorrecto. Necesitamos una forma de decirle a React: "Ejecuta este código solo después de que el componente se haya renderizado, o solo cuando una pieza de estado específica haya cambiado".
 
+Para esto, usamos el Hook `useEffect`.
+
+### 2. El Hook `useEffect`
+
+El Hook `useEffect` te permite sincronizar tu componente con un sistema externo. Acepta dos argumentos:
+
+1.  Una **función de configuración (setup)**: El código que quieres ejecutar. Este es tu "efecto".
+2.  Un **array de dependencias (opcional)**: Una lista de valores (props o estado) de los que depende tu efecto.
+
+```jsx
+useEffect(() => {
+  // 1. Función de configuración (tu efecto)
+  console.log('El efecto se ha ejecutado');
+
+  // Opcional: Función de limpieza
+  return () => {
+    console.log('Limpiando el efecto anterior');
+  };
+}, [/* 2. Array de dependencias */]);
 ```
-      Proceso de Renderizado de React
-      +------------------------------------+
-      | 1. El estado o las props cambian   |
-      | 2. React calcula la nueva UI       |
-      | 3. React actualiza el DOM (pinta)  |
-      +-----------------+------------------+
-                        |
-                        v
-      +-----------------+------------------+
-      |      useEffect se ejecuta          |
-      | (si sus dependencias cambiaron)    |
-      |                                    |
-      | - Cambiar título del documento     |
-      | - Pedir datos a una API            |
-      | - ... etc                          |
-      +------------------------------------+
-```
 
-## Tarea
+### 3. El Array de Dependencias: La Clave de `useEffect`
 
-Usaremos `useEffect` para dos cosas:
-1.  Establecer el título de la página la primera vez que se carga.
-2.  Actualizar el título de la página cada vez que el número de enlaces cambie.
+El comportamiento de `useEffect` cambia drásticamente según lo que pongas en el array de dependencias. Esta es la parte más importante que hay que entender:
 
-### Paso a Paso
-
-1.  **Modificar `App.jsx`:**
-    *   Importa `useEffect` desde React: `import { useEffect } from 'react';`.
-    *   Añade un `useEffect` que se ejecute cuando el componente se monta por primera vez y cada vez que la longitud de `links` cambie.
-
+-   **Si omites el array de dependencias por completo:**
     ```jsx
-    // src/App.jsx
-    import { useState, useEffect } from 'react'; // <-- Importar useEffect
-    // ...
-
-    function App() {
-      const [links, setLinks] = useState([ ... ]);
-      const profileData = {
-        username: '@tu-usuario',
-        // ...
-      };
-      // ...
-
-      // Este efecto se ejecutará después del primer renderizado
-      // y cada vez que el array 'links' cambie.
-      useEffect(() => {
-        document.title = `${profileData.username} | (${links.length}) Enlaces`;
-        console.log('Efecto ejecutado: El título de la página ha cambiado.');
-      }, [links, profileData.username]); // <-- Array de dependencias
-
-      // ... el resto del componente (addLink, return, etc.)
-      return (
-        <div className="App">
-          {/* ... */}
-        </div>
-      );
-    }
-
-    export default App;
+    useEffect(() => { /* ... */ });
     ```
+    El efecto se ejecutará **después de cada renderizado** del componente. (Úsalo con cuidado).
 
-2.  **Verifica el Resultado:**
-    *   Carga la aplicación. Mira la pestaña del navegador. Debería mostrar tu nombre de usuario y el número de enlaces (ej: "@tu-usuario | (3) Enlaces").
-    *   Añade un nuevo enlace usando el formulario.
-    *   Observa cómo el título en la pestaña del navegador se actualiza instantáneamente para reflejar el nuevo total de enlaces.
-    *   Revisa la consola para ver el mensaje del `useEffect`.
+-   **Si pasas un array vacío `[]`:**
+    ```jsx
+    useEffect(() => { /* ... */ }, []);
+    ```
+    El efecto se ejecutará **solo una vez**, después del primer renderizado del componente. Es perfecto para inicializaciones, como hacer una llamada a una API para obtener los datos iniciales.
 
-`useEffect` es un hook muy potente y versátil. Lo usarás constantemente para integrar tus componentes de React con el mundo exterior, especialmente para obtener datos de servidores.
+-   **Si pasas valores en el array `[prop, estado]`:**
+    ```jsx
+    useEffect(() => { /* ... */ }, [links, user]);
+    ```
+    El efecto se ejecutará **una vez después del primer renderizado** Y **cada vez que cualquiera de los valores en el array de dependencias cambie**. Si en un nuevo renderizado, `links` o `user` son diferentes al renderizado anterior, el efecto se volverá a ejecutar.
+
+### 4. Implementar nuestro primer `useEffect`
+
+Vamos a usar `useEffect` para un ejemplo sencillo: mostraremos un mensaje en la consola cada vez que nuestra lista de enlaces (`links`) cambie.
+
+**Paso a paso:**
+
+1.  Abre `src/App.jsx`.
+2.  Importa `useEffect` desde `react`, junto a `useState`.
+3.  Dentro de la función `App`, añade una llamada a `useEffect`.
+
+**Código a añadir/modificar en `App.jsx`:**
+
+```jsx
+// 2. Importar useEffect
+import React, { useState, useEffect } from 'react';
+import './App.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import LinkList from './components/LinkList';
+import AddLinkForm from './components/AddLinkForm';
+
+function App() {
+  const [links, setLinks] = useState([/*...*/]);
+
+  // ... funciones handleAddLink y handleDeleteLink ...
+
+  // 3. Añadir el useEffect
+  useEffect(() => {
+    // Este código se ejecutará cada vez que el estado 'links' cambie.
+    console.log('La lista de enlaces ha cambiado:', links);
+    document.title = `LinkHub (${links.length} enlaces)`;
+  }, [links]); // El array de dependencias
+
+  return (
+    <div className="container mt-5">
+      {/* ... JSX ... */}
+    </div>
+  );
+}
+
+export default App;
+```
+
+**¿Por qué y qué hace?**
+
+*   **`useEffect(() => { ... }, [links])`**: Le estamos diciendo a React:
+    1.  "Después de que te renderices, ejecuta este código".
+    2.  "Y vigila la variable de estado `links`. Si en un futuro renderizado, el array `links` ha cambiado, vuelve a ejecutar este código".
+*   **`console.log(...)`**: Simplemente muestra un mensaje en la consola del navegador. Abre las herramientas de desarrollador (F12) y mira la pestaña "Consola" cuando añadas o elimines un enlace.
+*   **`document.title = ...`**: Este es un efecto secundario clásico. Estamos interactuando con el DOM del navegador (fuera de React) para cambiar el título de la pestaña del navegador. Ahora, el título reflejará dinámicamente cuántos enlaces tienes.
+
+Aunque este ejemplo es sencillo, has aprendido la herramienta fundamental que te permitirá conectar tus aplicaciones React con el mundo exterior, ya sea para obtener datos de un servidor, guardar en el almacenamiento local o cualquier otra interacción que necesites realizar.

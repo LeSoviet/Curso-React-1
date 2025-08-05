@@ -1,118 +1,122 @@
-# Día 13: Obteniendo Datos de una "API" con `fetch`
+# Día 13: Obteniendo Datos Reales con `fetch`
 
-## Objetivo del Día
+## Objetivos del Día
 
-Simular la carga de datos desde un servidor externo. Reemplazaremos nuestros datos iniciales "hardcodeados" con datos cargados desde un archivo JSON local usando la `fetch` API del navegador dentro de un `useEffect`.
+-   Aprender a usar la API `fetch` del navegador para hacer peticiones HTTP GET.
+-   Interactuar con una API pública real ([JSONPlaceholder](https://jsonplaceholder.typicode.com/)) para obtener datos.
+-   Adaptar nuestro `linkService` y nuestro componente para manejar la estructura de datos de la API real.
 
-## Concepto Teórico
+## Tareas
 
-En aplicaciones reales, los datos casi siempre vienen de un servidor a través de una API. El hook `useEffect` con un array de dependencias vacío `[]` es el lugar perfecto para hacer estas llamadas a la red, ya que se ejecuta solo una vez, cuando el componente se monta.
+### 1. ¿Qué es `fetch`?
 
-La `fetch` API es una herramienta moderna del navegador para hacer peticiones de red. Devuelve una "Promesa" (`Promise`), que es un objeto que representa la eventual finalización (o fallo) de una operación asíncrona.
+`fetch` es una API moderna, nativa de los navegadores, que nos permite realizar peticiones de red (HTTP). Es la sucesora de `XMLHttpRequest` y está basada en `Promises`, lo que la hace muy fácil de usar en nuestro flujo asíncrono.
 
-El flujo básico con `async/await` (una sintaxis más limpia para manejar promesas) es:
-1.  `async function fetchData() { ... }`
-2.  `const response = await fetch('url');` // Espera la respuesta
-3.  `const data = await response.json();` // Espera a que el cuerpo se convierta a JSON
-4.  `setData(data);` // Actualiza el estado con los datos recibidos
+La sintaxis básica para una petición GET es:
 
-## Dibujo Conceptual
-
-Tu aplicación hace una petición a una fuente de datos externa para poblar su estado inicial.
-
-```
-      +--------------------------------+
-      |           Componente           |
-      |                                |
-      | useEffect(..., []) se dispara  |
-      |           |                    |
-      |           v                    |
-      |      async function fetch...() |
-      +---------------+----------------+
-                      |
-                      v (Petición de Red)
-      +---------------+----------------+
-      |      Servidor / Archivo JSON   |
-      +---------------+----------------+
-                      |
-                      v (Respuesta con Datos)
-      +---------------+----------------+
-      | .then(data => setData(data))   |
-      |      Actualiza el estado       |
-      +--------------------------------+
+```javascript
+fetch('https://api.example.com/data')
+  .then(response => response.json()) // Parsea la respuesta a JSON
+  .then(data => {
+    console.log(data); // Usa los datos
+  })
+  .catch(error => {
+    console.error('Error:', error);
+  });
 ```
 
-## Tarea
+Una cosa importante a tener en cuenta es que `fetch` tiene un manejo de errores en dos pasos:
+1.  El primer `.then()` se ejecuta incluso si la respuesta es un error HTTP como 404 (No Encontrado) o 500 (Error del Servidor). Debemos comprobar manualmente si la respuesta fue exitosa.
+2.  El `.catch()` solo se activa si hay un error de red que impide que la petición se complete (ej: el usuario está offline).
 
-1.  Crear un archivo `db.json` para simular nuestra base de datos.
-2.  Modificar `App.jsx` para que cargue los datos desde este archivo al iniciar.
+### 2. Usando una API de Ejemplo: JSONPlaceholder
 
-### Paso a Paso
+Para no tener que construir nuestro propio backend todavía, usaremos [JSONPlaceholder](https://jsonplaceholder.typicode.com/), un servicio gratuito que proporciona una API REST de ejemplo, perfecta para prototipado y tutoriales.
 
-1.  **Crear `db.json`:**
-    *   En la carpeta `public` de tu proyecto Vite, crea un archivo `db.json`. (Ponerlo en `public` hace que sea accesible directamente desde el navegador).
-    *   Copia tus datos iniciales a este archivo con formato JSON.
+Vamos a usar el endpoint `https://jsonplaceholder.typicode.com/users/1/todos`, que nos dará una lista de tareas (todos) para un usuario específico. Usaremos estos "todos" como si fueran nuestros enlaces.
 
-    ```json
-    // public/db.json
-    {
-      "profile": {
-        "imageUrl": "https://via.placeholder.com/150",
-        "username": "@json-user",
-        "bio": "Mis datos vienen de un archivo JSON."
-      },
-      "links": [
-        { "id": 1, "title": "Vite Docs", "url": "https://vitejs.dev" },
-        { "id": 2, "title": "React Docs", "url": "https://react.dev" }
-      ]
-    }
-    ```
+### 3. Actualizando el `linkService.js`
 
-2.  **Modificar `App.jsx` para usar `fetch`:**
-    *   Usa un `useEffect` para cargar los datos cuando la aplicación se inicie.
-    *   Inicializa los estados como vacíos o nulos.
+Vamos a reemplazar nuestra simulación con una llamada `fetch` real.
 
-    ```jsx
-    // src/App.jsx
-    import { useState, useEffect } from 'react';
-    // ...
+**Paso a paso:**
 
-    function App() {
-      const [profile, setProfile] = useState(null);
-      const [links, setLinks] = useState([]);
+1.  Abre `src/services/linkService.js`.
+2.  Reescribe la función `getLinks` para que use `fetch`.
 
-      useEffect(() => {
-        // Definimos una función asíncrona dentro del efecto
-        const fetchData = async () => {
-          try {
-            const response = await fetch('/db.json'); // Vite sirve public/ como /
-            const data = await response.json();
-            setProfile(data.profile);
-            setLinks(data.links);
-            console.log('Datos cargados desde db.json!', data);
-          } catch (error) {
-            console.error('Error al cargar los datos:', error);
-          }
-        };
+**Código a modificar en `linkService.js`:**
 
-        fetchData(); // La llamamos
-      }, []); // <-- Array vacío para que se ejecute solo una vez
+```javascript
+// Ya no necesitamos los datos hardcodeados
+// const initialLinks = [...];
 
-      // ... lógica de addLink y deleteLink ...
-
-      // ¡Importante! Manejar el caso donde los datos aún no han cargado
-      if (!profile) {
-        return <div>Cargando perfil...</div>;
+// Función que llama a la API real
+export const getLinks = () => {
+  console.log('Fetching data from API...');
+  return fetch('https://jsonplaceholder.typicode.com/users/1/todos')
+    .then(response => {
+      // Comprobamos si la respuesta de la red fue exitosa
+      if (!response.ok) {
+        // Si no lo fue, lanzamos un error para que lo capture el .catch()
+        throw new Error('Network response was not ok');
       }
+      // Si la respuesta es exitosa, la parseamos de JSON a un objeto JS
+      return response.json();
+    });
+};
+```
 
-      return (
-        <div className="App">
-          {/* ... */}
-        </div>
-      );
-    }
-    ```
+**¿Por qué y qué hace?**
 
-### Verifica el Resultado
+*   Hemos eliminado nuestra `Promise` manual y `setTimeout`. Ahora `fetch` nos devuelve una `Promise` directamente.
+*   **`if (!response.ok)`**: La propiedad `ok` de la respuesta es un booleano que es `true` si el código de estado HTTP está en el rango 200-299 (éxito). Si no es `ok`, lanzamos un `Error`. Esto detendrá la ejecución del `.then()` y pasará el control al bloque `.catch()` en el lugar donde se llamó a `getLinks` (en `ProfilePage.jsx`).
+*   **`return response.json()`**: El cuerpo de una respuesta `fetch` es un "stream". El método `.json()` lee este stream hasta el final y lo parsea como JSON. Es importante destacar que `.json()` también es una operación asíncrona y devuelve su propia `Promise`, pero la sintaxis de encadenamiento de `.then()` lo maneja por nosotros de forma transparente.
 
-Al recargar la página, deberías ver brevemente el mensaje "Cargando perfil..." y luego aparecerá la información cargada desde `db.json`. Has hecho tu aplicación mucho más realista, separando los datos de la lógica de la vista.
+### 4. Adaptando el Componente a los Nuevos Datos
+
+La API de JSONPlaceholder nos devuelve objetos con una estructura diferente a la que usábamos. Un "todo" de la API se ve así:
+
+```json
+{
+  "userId": 1,
+  "id": 1,
+  "title": "delectus aut autem",
+  "completed": false
+}
+```
+
+No tenemos una propiedad `url`. Para que nuestra aplicación funcione, necesitamos adaptar los datos recibidos a la estructura que nuestros componentes esperan (`{ id, title, url }`).
+
+**Paso a paso:**
+
+1.  Abre `src/pages/ProfilePage.jsx` (el antiguo `App.jsx`).
+2.  Modifica el `.then()` en el `useEffect` de carga para transformar los datos recibidos.
+
+**Código a modificar en `ProfilePage.jsx`:**
+
+```jsx
+// ... en el useEffect de carga ...
+getLinks()
+  .then(apiTodos => {
+    // 2. Transformar los datos de la API a nuestra estructura interna
+    console.log('Datos recibidos de la API:', apiTodos);
+    const adaptedLinks = apiTodos.map(todo => ({
+      id: todo.id,
+      title: todo.title, // La API ya nos da un título
+      // Como la API no nos da una URL, creamos una de ejemplo
+      url: `https://jsonplaceholder.typicode.com/todos/${todo.id}`
+    }));
+    console.log('Datos adaptados para nuestra app:', adaptedLinks);
+
+    setLinks(adaptedLinks);
+    setError(null);
+  })
+// ... el resto del código ...
+```
+
+**¿Por qué y qué hace?**
+
+*   **`apiTodos.map(todo => ({...}))`**: Estamos usando `.map()` para crear un **nuevo** array. Por cada `todo` que recibimos de la API, creamos un nuevo objeto con la estructura que nuestros componentes `LinkCard` y `LinkList` esperan.
+*   Esto se conoce como una **capa de adaptación** o **anti-corrupción**. Es una práctica excelente. Significa que el resto de nuestra aplicación no necesita saber nada sobre la estructura de la API externa. Si la API cambia en el futuro (por ejemplo, `title` pasa a llamarse `name`), solo tendríamos que cambiarlo en este único lugar, y no en todos nuestros componentes.
+
+Ahora, cuando recargues la página, verás que los datos se cargan desde una API real en Internet. Has dado un paso gigante, pasando de una aplicación con datos de juguete a una que puede consumir cualquier fuente de datos externa.

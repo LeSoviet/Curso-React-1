@@ -1,111 +1,99 @@
-# Día 6: Composición de Componentes y "Lifting State Up"
+# Día 6: "Lifting State Up" (Levantando el Estado)
 
-## Objetivo del Día
+## Objetivos del Día
 
-Hoy te enfocarás en la organización del código. A medida que una aplicación crece, es crucial mantener los componentes pequeños y enfocados en una sola tarea. Extraerás el formulario que creamos ayer a su propio componente (`AddLinkForm`).
+-   Entender el concepto de "Lifting State Up".
+-   Conectar la función de eliminación del padre (`App.jsx`) con el botón del hijo (`LinkCard.jsx`).
+-   Hacer que el botón "Eliminar" sea completamente funcional.
 
-Este proceso te enseñará un concepto vital: **"Lifting State Up"** (Elevar el estado). Ocurre cuando varios componentes necesitan reflejar los mismos datos cambiantes. Se logra moviendo el estado al ancestro común más cercano de los componentes que lo necesitan.
+## Tareas
 
-## Tarea
+### 1. ¿Qué es "Lifting State Up"?
 
-1.  Crear un nuevo componente `AddLinkForm.jsx`.
-2.  Mover toda la lógica del formulario (los estados de los inputs y el JSX del form) de `App.jsx` al nuevo componente.
-3.  Hacer que el componente `App.jsx` siga controlando la lista de enlaces, pasando la función para añadir un enlace como `prop` a `AddLinkForm`.
+Es uno de los patrones más importantes en React. La idea es la siguiente:
 
-### Paso a Paso
+> Cuando varios componentes necesitan compartir y manipular el mismo estado, ese estado debe moverse al ancestro común más cercano en el árbol de componentes.
 
-1.  **Crear el Componente `AddLinkForm`:**
-    *   En `src/components`, crea un nuevo archivo `AddLinkForm.jsx`.
-    *   Importa `useState` en este nuevo archivo.
-    *   Copia la lógica de los estados `newTitle` y `newUrl`, y el JSX del `<form>` desde `App.jsx` a `AddLinkForm.jsx`.
+En nuestro caso:
 
-2.  **Modificar `AddLinkForm` para Recibir una Prop:**
-    *   El componente `AddLinkForm` necesita una forma de "decirle" a `App.jsx` que un nuevo enlace debe ser añadido. Lo hará llamando a una función que recibirá a través de sus `props`.
-    *   La función `handleSubmit` (antes `handleAddNewLink`) ahora llamará a `props.onNewLink` con los datos del nuevo enlace.
+-   `App.jsx` tiene el estado (el array `links`).
+-   `LinkCard.jsx` necesita **manipular** ese estado (eliminando un elemento).
 
-    ```jsx
-    // src/components/AddLinkForm.jsx
-    import { useState } from 'react';
+Como `LinkCard` no puede modificar directamente el estado de su padre, "levantamos el estado". Esto no significa que movemos el estado en sí, sino que **la lógica para modificar el estado (`handleDeleteLink`) se mantiene en el padre (`App.jsx`), y el padre le pasa esa lógica al hijo como una prop (`onDelete`).**
 
-    function AddLinkForm(props) {
-      const [newTitle, setNewTitle] = useState('');
-      const [newUrl, setNewUrl] = useState('');
+El hijo simplemente invoca esa función cuando es necesario, sin saber los detalles de cómo funciona. Solo sabe que al llamarla, algo sucederá.
 
-      const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!newTitle || !newUrl) return;
+### 2. Recibir y usar las `props` en `LinkCard.jsx`
 
-        // Llama a la función pasada por props con los datos
-        props.onNewLink({ title: newTitle, url: newUrl });
+En la tarea anterior, pasamos la función `handleDeleteLink` como una `prop` llamada `onDelete` a cada `LinkCard`. Ahora, vamos a recibirla y usarla.
 
-        setNewTitle('');
-        setNewUrl('');
-      };
+**Paso a paso:**
 
-      return (
-        <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="Título del enlace"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="URL del enlace"
-            value={newUrl}
-            onChange={(e) => setNewUrl(e.target.value)}
-          />
-          <button type="submit">Añadir Enlace</button>
-        </form>
-      );
-    }
+1.  Abre el archivo `src/components/LinkCard.jsx`.
+2.  El botón "Eliminar" necesita saber **qué** enlace eliminar. Para ello, también debemos pasar el `id` del enlace como `prop` desde `App.jsx`.
 
-    export default AddLinkForm;
-    ```
+    *   **Primero, modifica `App.jsx`** para pasar el `id`:
 
-3.  **Limpiar y Actualizar `App.jsx`:**
-    *   Elimina los estados `newTitle` y `newUrl` de `App.jsx`. Ya no los necesita.
-    *   Importa tu nuevo componente `AddLinkForm`.
-    *   Crea una función `addLink` en `App.jsx` que tome un objeto de enlace y actualice el estado `links`.
-    *   En el `return`, renderiza `<AddLinkForm />` y pásale la función `addLink` como una prop llamada `onNewLink`.
+        ```jsx
+        // En App.jsx
+        <LinkCard
+          key={link.id}
+          id={link.id} // <-- Añade esta línea
+          title={link.title}
+          url={link.url}
+          onDelete={handleDeleteLink}
+        />
+        ```
 
-    ```jsx
-    // src/App.jsx
-    import { useState } from 'react';
-    // ... otras importaciones
-    import AddLinkForm from './components/AddLinkForm';
+3.  Ahora sí, en `LinkCard.jsx`, vamos a conectar todo al evento `onClick` del botón.
 
-    function App() {
-      // ... estado de links y datos de perfil ...
-      const [links, setLinks] = useState(/*...initialLinks...*/);
+**Código final de `LinkCard.jsx`:**
 
-      const addLink = (linkData) => {
-        const newLink = {
-          id: Date.now(),
-          ...linkData // title y url vienen de linkData
-        };
-        setLinks([...links, newLink]);
-      };
+```jsx
+import React from 'react';
 
-      return (
-        <div className="App">
-          {/* ... ProfileHeader ... */}
-          <AddLinkForm onNewLink={addLink} />
-          <LinkList links={links} />
-        </div>
-      );
-    }
+// Recibimos las nuevas props: id y onDelete
+function LinkCard({ id, title, url, onDelete }) {
+  const handleDelete = () => {
+    // Llamamos a la función que recibimos por props, pasándole el id
+    onDelete(id);
+  };
 
-    export default App;
-    ```
+  return (
+    <div className="link-card">
+      <a href={url} target="_blank" rel="noopener noreferrer">
+        {title}
+      </a>
+      {/* El botón ahora llama a nuestra función local handleDelete */}
+      <button onClick={handleDelete}>Eliminar</button>
+    </div>
+  );
+}
 
-4.  **Verificar el Flujo:**
-    *   La aplicación debería funcionar exactamente igual que antes.
-    *   **El flujo ahora es:**
-        1.  Escribes en los inputs de `AddLinkForm`, que maneja su propio estado temporal para los campos.
-        2.  Al enviar, `AddLinkForm` llama a la función `onNewLink` (que es `addLink` en `App`).
-        3.  La función `addLink` en `App.jsx` recibe los datos y actualiza el estado principal `links`.
-        4.  React renderiza de nuevo `App`, que pasa la nueva lista de `links` a `LinkList`, y la UI se actualiza.
+export default LinkCard;
+```
 
-Has refactorizado tu aplicación y aprendido a comunicar componentes hijos con sus padres. Esta es una habilidad clave para construir aplicaciones complejas y mantenibles.
+**¿Por qué y qué hace?**
+
+*   **`function LinkCard({ id, title, url, onDelete })`**: Estamos usando la "desestructuración de props" aquí. En lugar de escribir `props` y luego `props.id`, `props.title`, etc., podemos extraer las propiedades directamente en la firma de la función. Es una sintaxis más limpia y común.
+
+*   **`const handleDelete = () => { ... }`**: Hemos creado una pequeña función de envoltura dentro de `LinkCard`. Esto no es estrictamente necesario (podríamos haber puesto la lógica directamente en el `onClick`), pero hace que el código sea más legible.
+
+*   **`onDelete(id)`**: ¡Esta es la conexión clave! Estamos llamando a la función `onDelete` que recibimos a través de las `props`. Recuerda, `onDelete` es en realidad la función `handleDeleteLink` de `App.jsx`. Al llamarla, le pasamos el `id` que también recibimos por `props`. Esto le dice a la función en `App.jsx` *cuál* es el enlace que debe ser eliminado.
+
+*   **`onClick={handleDelete}`**: El atributo `onClick` espera una función. Cuando el usuario hace clic en el botón, React ejecutará la función que le pasemos. En este caso, ejecuta nuestra función `handleDelete`, que a su vez llama a la función del padre.
+
+### Resumen del Flujo de Datos
+
+Veamos el viaje completo de un clic:
+
+1.  **Usuario Clica**: Haces clic en el botón "Eliminar" de un `LinkCard`.
+2.  **Evento `onClick`**: El `onClick` en el `<button>` del `LinkCard.jsx` se dispara.
+3.  **Llamada a la Prop**: Se ejecuta la función `handleDelete`, que llama a `onDelete(id)`, pasando el `id` de ese enlace específico (ej: `onDelete(2)`).
+4.  **Ejecución en el Padre**: La llamada a `onDelete(2)` en el hijo ejecuta la función `handleDeleteLink(2)` en el padre (`App.jsx`).
+5.  **Filtrado de Estado**: `handleDeleteLink` filtra el array `links`, creando un nuevo array sin el enlace que tiene `id: 2`.
+6.  **Actualización de Estado**: La función llama a `setLinks()` con el nuevo array.
+7.  **Re-renderizado de React**: React detecta que el estado `links` ha cambiado. Vuelve a renderizar el componente `App` y sus hijos. Como el array `links` ahora es más corto, el `.map()` renderizará un `LinkCard` menos.
+8.  **UI Actualizada**: El enlace eliminado desaparece de la pantalla.
+
+¡Felicidades! Has implementado uno de los patrones más fundamentales para construir aplicaciones interactivas en React.
